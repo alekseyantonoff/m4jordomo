@@ -5,9 +5,10 @@ package voice
 import (
 	"bufio"
 	"log"
+	"m4jordomo/internal/bus"
+	"m4jordomo/internal/types"
 	"os"
 	"strings"
-	"m4jordomo/internal/types"
 )
 
 type VoicePlugin struct{}
@@ -20,7 +21,7 @@ func (p *VoicePlugin) Name() string {
 	return "voice"
 }
 
-func (p *VoicePlugin) Init(bus *types.Bus) error {
+func (p *VoicePlugin) Init(bus *bus.Bus) error {
 	log.Println("[Voice] 🎤 Запущен голосовой интерфейс (вводите команды в консоль)")
 	log.Println("[Voice] Доступные команды:")
 	log.Println("  - включи свет")
@@ -33,7 +34,7 @@ func (p *VoicePlugin) Init(bus *types.Bus) error {
 	return nil
 }
 
-func (p *VoicePlugin) listenConsole(bus *types.Bus) {
+func (p *VoicePlugin) listenConsole(bus *bus.Bus) {
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		text, err := reader.ReadString('\n')

@@ -3,9 +3,10 @@ package devices
 
 import (
 	"log"
-	"sync"
+	"m4jordomo/internal/bus"
 	"m4jordomo/internal/storage"
 	"m4jordomo/internal/types"
+	"sync"
 )
 
 type DevicesPlugin struct {
@@ -25,19 +26,38 @@ func (p *DevicesPlugin) Name() string {
 	return "devices"
 }
 
-func (p *DevicesPlugin) Init(bus *types.Bus) error {
+func (p *DevicesPlugin) Init(b *bus.Bus) error {
+	// 1. Пытаемся загрузить состояния из БД
 	if err := p.loadStatesFromDB(); err != nil {
 		log.Printf("[Devices] ⚠️ Не удалось загрузить состояния: %v", err)
+		// 2. Если БД не открылась или пуста — создаем дефолтные
 		p.setDefaults()
 	}
+
+	// 3. Проверяем, загрузились ли состояния. Если нет (все еще пусто) — создаем дефолтные принудительно
+	p.mu.RLock()
+	empty := len(p.states) == 0
+	p.mu.RUnlock()
+
+	if empty {
+		log.Println("[Devices] База данных пуста. Создаю дефолтные устройства...")
+		p.setDefaults()
+	}
+
 	log.Printf("[Devices] 📋 Загружены состояния: %v", p.states)
 
-	bus.Subscribe("command.device.set", func(e types.Event) {
-		p.handleSetDevice(e, bus)
+	log.Println("[Devices] Подписываюсь на события...")
+
+	b.Subscribe("command.device.set", func(e types.Event) {
+		p.handleSetDevice(e, b)
 	})
-	bus.Subscribe("command.device.get_all", func(e types.Event) {
-		p.handleGetAllDevices(e, bus)
+
+	b.Subscribe("command.device.get_all", func(e types.Event) {
+		p.handleGetAllDevices(e, b)
 	})
+
+	log.Println("[Devices] Подписки выполнены.")
+
 	return nil
 }
 
@@ -57,16 +77,24 @@ func (p *DevicesPlugin) loadStatesFromDB() error {
 func (p *DevicesPlugin) setDefaults() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	defaults := map[string]bool{"light": false, "heating": false, "door": false}
+
+	defaults := map[string]bool{
+		"light":   false,
+		"heating": false,
+		"door":    false,
+	}
+
 	for name, status := range defaults {
 		p.states[name] = status
+		// Сохраняем в БД
 		if err := p.storage.SetDeviceStatus(name, status); err != nil {
 			log.Printf("[Devices] Ошибка сохранения %s: %v", name, err)
 		}
 	}
+	log.Println("[Devices] ✅ Дефолтные устройства созданы и сохранены в БД")
 }
 
-func (p *DevicesPlugin) handleSetDevice(e types.Event, bus *types.Bus) {
+func (p *DevicesPlugin) handleSetDevice(e types.Event, bus *bus.Bus) {
 	deviceName, ok := e.Payload["name"].(string)
 	if !ok {
 		log.Printf("[Devices] Ошибка: нет поля 'name'")
@@ -102,7 +130,7 @@ func (p *DevicesPlugin) handleSetDevice(e types.Event, bus *types.Bus) {
 	})
 }
 
-func (p *DevicesPlugin) handleGetAllDevices(e types.Event, bus *types.Bus) {
+func (p *DevicesPlugin) handleGetAllDevices(e types.Event, bus *bus.Bus) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	bus.Publish(types.Event{
@@ -113,4 +141,3 @@ func (p *DevicesPlugin) handleGetAllDevices(e types.Event, bus *types.Bus) {
 		},
 	})
 }
-

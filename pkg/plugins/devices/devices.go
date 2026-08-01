@@ -46,6 +46,16 @@ func (p *DevicesPlugin) Init(b *bus.Bus) error {
 			p.storage.SetDeviceStatus(name, status)
 		}
 	}
+
+	// Удаляем устройства, которых больше нет в defaultDevices
+	for name := range p.states {
+		if _, exists := defaultDevices[name]; !exists {
+			delete(p.states, name)
+			if err := p.storage.DeleteDevice(name); err != nil {
+				log.Printf("[Devices] ❌ Ошибка удаления %s: %v", name, err)
+			}
+		}
+	}
 	p.mu.Unlock()
 
 	// 3. Проверяем, загрузились ли состояния. Если нет (все еще пусто) — создаем дефолтные принудительно

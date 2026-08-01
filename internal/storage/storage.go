@@ -4,6 +4,7 @@ package storage
 import (
 	"database/sql"
 	"log"
+
 	_ "modernc.org/sqlite"
 )
 
@@ -91,6 +92,13 @@ func (s *Storage) GetAllDevices() ([]DeviceState, error) {
 		states = append(states, d)
 	}
 	return states, nil
+}
+
+// DeleteDevice — удаляет устройство из БД
+func (s *Storage) DeleteDevice(name string) error {
+	query := `DELETE FROM devices WHERE name = ?`
+	_, err := s.db.Exec(query, name)
+	return err
 }
 
 // Close — закрывает соединение с БД

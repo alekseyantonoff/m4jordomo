@@ -3,9 +3,9 @@ package bus
 
 import (
 	"log"
+	"m4jordomo/internal/types"
 	"sync"
 	"time"
-	"m4jordomo/internal/types"
 )
 
 // Bus — шина событий

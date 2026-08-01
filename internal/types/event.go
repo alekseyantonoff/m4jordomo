@@ -5,11 +5,11 @@ import "time"
 
 // Event — сообщение, которое передается по шине
 type Event struct {
-	Type      string                 // Например, "device.light.toggle"
-	Priority  Priority               // Насколько важно событие
-	Payload   map[string]interface{} // Данные: {"status": true}
-	Timestamp time.Time              // Время создания
-	RetryCount int                   // Сколько раз уже пытались доставить
+	Type       string      // Например, "device.light.toggle"
+	Priority   Priority    // Насколько важно событие
+	Payload    interface{} // Типизированные данные: DeviceCommand, DeviceState и т.д.
+	Timestamp  time.Time   // Время создания
+	RetryCount int         // Сколько раз уже пытались доставить
 }
 
 // Priority — уровень важности события

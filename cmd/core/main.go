@@ -40,24 +40,27 @@ func main() {
 	log.Println("📝 Введите 'статус' для проверки состояния устройств")
 	log.Println("📝 Введите 'выход' для завершения")
 
-	b.Subscribe("device.state.changed", func(e types.Event) {
-		name, _ := e.Payload["name"].(string)
-		status, _ := e.Payload["status"].(bool)
+	b.Subscribe(types.EventDeviceStateChanged, func(e types.Event) {
+		state, ok := e.Payload.(types.DeviceState)
+		if !ok {
+			log.Println("[m4jordomo] Ошибка: неверный формат payload")
+			return
+		}
 		statusText := "🔴 ВЫКЛ"
-		if status {
+		if state.Status {
 			statusText = "🟢 ВКЛ"
 		}
-		log.Printf("[m4jordomo] 📢 %s -> %s", name, statusText)
+		log.Printf("[m4jordomo] 📢 %s -> %s", state.Name, statusText)
 	})
 
-	b.Subscribe("device.state.response", func(e types.Event) {
-		states, ok := e.Payload["states"].(map[string]bool)
+	b.Subscribe(types.EventDeviceStateResponse, func(e types.Event) {
+		list, ok := e.Payload.(types.DeviceStateList)
 		if !ok {
 			log.Println("[m4jordomo] Ошибка: не могу прочитать состояния")
 			return
 		}
 		log.Println("=== Состояние устройств ===")
-		for name, status := range states {
+		for name, status := range list.States {
 			statusText := "🔴 ВЫКЛ"
 			if status {
 				statusText = "🟢 ВКЛ"

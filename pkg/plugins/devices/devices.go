@@ -7,6 +7,7 @@ import (
 	"m4jordomo/internal/storage"
 	"m4jordomo/internal/types"
 	"sync"
+	"time"
 )
 
 type DevicesPlugin struct {
@@ -72,12 +73,12 @@ func (p *DevicesPlugin) Init(b *bus.Bus) error {
 
 	log.Println("[Devices] Подписываюсь на события...")
 
-	b.Subscribe("command.device.set", func(e types.Event) {
+	b.Subscribe(types.EventCommandDeviceSet, func(e types.Event) {
 		p.handleSetDevice(e, b)
 	})
 
-	b.Subscribe("command.device.get_all", func(e types.Event) {
-		p.handleGetAllDevices(e, b)
+	b.Subscribe(types.EventCommandDeviceGetAll, func(_ types.Event) {
+		p.handleGetAllDevices(b)
 	})
 
 	log.Println("[Devices] Подписки выполнены.")
@@ -113,49 +114,50 @@ func (p *DevicesPlugin) setDefaults() {
 }
 
 func (p *DevicesPlugin) handleSetDevice(e types.Event, bus *bus.Bus) {
-	deviceName, ok := e.Payload["name"].(string)
+	cmd, ok := e.Payload.(types.DeviceCommand)
 	if !ok {
-		log.Printf("[Devices] Ошибка: нет поля 'name'")
-		return
-	}
-	status, ok := e.Payload["status"].(bool)
-	if !ok {
-		log.Printf("[Devices] Ошибка: нет поля 'status'")
+		log.Printf("[Devices] Ошибка: неверный формат payload: %v", e.Payload)
 		return
 	}
 	p.mu.Lock()
-	_, exists := p.states[deviceName]
+	_, exists := p.states[cmd.Name]
 	if !exists {
 		p.mu.Unlock()
-		log.Printf("[Devices] ❌ Устройство '%s' не найдено", deviceName)
+		log.Printf("[Devices] ❌ Устройство '%s' не найдено", cmd.Name)
 		return
 	}
-	p.states[deviceName] = status
+	p.states[cmd.Name] = cmd.Status
 	p.mu.Unlock()
 
-	if err := p.storage.SetDeviceStatus(deviceName, status); err != nil {
+	if err := p.storage.SetDeviceStatus(cmd.Name, cmd.Status); err != nil {
 		log.Printf("[Devices] ❌ Ошибка сохранения в БД: %v", err)
 	}
-	log.Printf("[Devices] 💡 %s теперь %v", deviceName, status)
+	log.Printf("[Devices] 💡 %s теперь %v", cmd.Name, cmd.Status)
 
 	bus.Publish(types.Event{
-		Type:     "device.state.changed",
+		Type:     types.EventDeviceStateChanged,
 		Priority: types.Medium,
-		Payload: map[string]interface{}{
-			"name":   deviceName,
-			"status": status,
+		Payload: types.DeviceState{
+			Name:      cmd.Name,
+			Status:    cmd.Status,
+			UpdatedAt: time.Now(),
 		},
 	})
 }
 
-func (p *DevicesPlugin) handleGetAllDevices(e types.Event, bus *bus.Bus) {
+func (p *DevicesPlugin) handleGetAllDevices(bus *bus.Bus) {
 	p.mu.RLock()
-	defer p.mu.RUnlock()
+	states := make(map[string]bool, len(p.states))
+	for name, status := range p.states {
+		states[name] = status
+	}
+	p.mu.RUnlock()
+
 	bus.Publish(types.Event{
-		Type:     "device.state.response",
+		Type:     types.EventDeviceStateResponse,
 		Priority: types.Medium,
-		Payload: map[string]interface{}{
-			"states": p.states,
+		Payload: types.DeviceStateList{
+			States: states,
 		},
 	})
 }

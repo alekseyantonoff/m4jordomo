@@ -28,6 +28,8 @@ func (p *VoicePlugin) Init(bus *bus.Bus) error {
 	log.Println("  - выключи свет")
 	log.Println("  - включи отопление")
 	log.Println("  - выключи отопление")
+	log.Println("  - открой дверь")
+	log.Println("  - закрой дверь")
 	log.Println("  - статус")
 	log.Println("  - выход")
 	go p.listenConsole(bus)
@@ -90,6 +92,26 @@ func (p *VoicePlugin) listenConsole(bus *bus.Bus) {
 					"status": false,
 				},
 			})
+
+		case strings.Contains(text, "открой дверь"):
+			bus.Publish(types.Event{
+				Type:     "command.device.set",
+				Priority: types.High,
+				Payload: map[string]interface{}{
+					"name":   "door",
+					"status": true,
+				},
+			})
+		case strings.Contains(text, "закрой дверь"):
+			bus.Publish(types.Event{
+				Type:     "command.device.set",
+				Priority: types.High,
+				Payload: map[string]interface{}{
+					"name":   "door",
+					"status": false,
+				},
+			})
+
 		default:
 			log.Printf("[Voice] 🤔 Не понял команду: '%s'", text)
 		}

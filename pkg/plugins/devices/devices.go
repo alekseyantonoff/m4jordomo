@@ -15,6 +15,12 @@ type DevicesPlugin struct {
 	storage *storage.Storage
 }
 
+var defaultDevices = map[string]bool{
+	"light":   false,
+	"heating": false,
+	"door":    false,
+}
+
 func New(st *storage.Storage) *DevicesPlugin {
 	return &DevicesPlugin{
 		states:  make(map[string]bool),
@@ -30,9 +36,17 @@ func (p *DevicesPlugin) Init(b *bus.Bus) error {
 	// 1. Пытаемся загрузить состояния из БД
 	if err := p.loadStatesFromDB(); err != nil {
 		log.Printf("[Devices] ⚠️ Не удалось загрузить состояния: %v", err)
-		// 2. Если БД не открылась или пуста — создаем дефолтные
-		p.setDefaults()
 	}
+
+	// 2. Добавляем недостающие устройства (если БД пустая или старая)
+	p.mu.Lock()
+	for name, status := range defaultDevices {
+		if _, exists := p.states[name]; !exists {
+			p.states[name] = status
+			p.storage.SetDeviceStatus(name, status)
+		}
+	}
+	p.mu.Unlock()
 
 	// 3. Проверяем, загрузились ли состояния. Если нет (все еще пусто) — создаем дефолтные принудительно
 	p.mu.RLock()
@@ -78,13 +92,7 @@ func (p *DevicesPlugin) setDefaults() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	defaults := map[string]bool{
-		"light":   false,
-		"heating": false,
-		"door":    false,
-	}
-
-	for name, status := range defaults {
+	for name, status := range defaultDevices {
 		p.states[name] = status
 		// Сохраняем в БД
 		if err := p.storage.SetDeviceStatus(name, status); err != nil {

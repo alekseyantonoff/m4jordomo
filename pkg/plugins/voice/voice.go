@@ -52,63 +52,63 @@ func (p *VoicePlugin) listenConsole(bus *bus.Bus) {
 			os.Exit(0)
 		case text == "статус":
 			bus.Publish(types.Event{
-				Type:     "command.device.get_all",
+				Type:     types.EventCommandDeviceGetAll,
 				Priority: types.Medium,
-				Payload:  map[string]interface{}{},
+				Payload:  nil,
 			})
 		case strings.Contains(text, "включи свет"):
 			bus.Publish(types.Event{
-				Type:     "command.device.set",
+				Type:     types.EventCommandDeviceSet,
 				Priority: types.High,
-				Payload: map[string]interface{}{
-					"name":   "light",
-					"status": true,
+				Payload: types.DeviceCommand{
+					Name:   "light",
+					Status: true,
 				},
 			})
 		case strings.Contains(text, "выключи свет"):
 			bus.Publish(types.Event{
-				Type:     "command.device.set",
+				Type:     types.EventCommandDeviceSet,
 				Priority: types.High,
-				Payload: map[string]interface{}{
-					"name":   "light",
-					"status": false,
+				Payload: types.DeviceCommand{
+					Name:   "light",
+					Status: false,
 				},
 			})
 		case strings.Contains(text, "включи отопление"):
 			bus.Publish(types.Event{
-				Type:     "command.device.set",
+				Type:     types.EventCommandDeviceSet,
 				Priority: types.High,
-				Payload: map[string]interface{}{
-					"name":   "heating",
-					"status": true,
+				Payload: types.DeviceCommand{
+					Name:   "heating",
+					Status: true,
 				},
 			})
 		case strings.Contains(text, "выключи отопление"):
 			bus.Publish(types.Event{
-				Type:     "command.device.set",
+				Type:     types.EventCommandDeviceSet,
 				Priority: types.High,
-				Payload: map[string]interface{}{
-					"name":   "heating",
-					"status": false,
+				Payload: types.DeviceCommand{
+					Name:   "heating",
+					Status: false,
 				},
 			})
 
 		case strings.Contains(text, "открой дверь"):
 			bus.Publish(types.Event{
-				Type:     "command.device.set",
+				Type:     types.EventCommandDeviceSet,
 				Priority: types.High,
-				Payload: map[string]interface{}{
-					"name":   "door",
-					"status": true,
+				Payload: types.DeviceCommand{
+					Name:   "door",
+					Status: true,
 				},
 			})
 		case strings.Contains(text, "закрой дверь"):
 			bus.Publish(types.Event{
-				Type:     "command.device.set",
+				Type:     types.EventCommandDeviceSet,
 				Priority: types.High,
-				Payload: map[string]interface{}{
-					"name":   "door",
-					"status": false,
+				Payload: types.DeviceCommand{
+					Name:   "door",
+					Status: false,
 				},
 			})
 

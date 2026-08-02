@@ -40,3 +40,13 @@ type SensorReading struct {
 type DeviceStateList struct {
 	States map[string]bool // name -> статус
 }
+
+// EventDeadLetter — событие не доставлено после всех попыток
+const EventDeadLetter = "system.dead_letter"
+
+// DeadLetter — запись для «мёртвой очереди»: что не доставилось и почему
+type DeadLetter struct {
+	Event    Event  // исходное событие, которое не удалось доставить
+	Reason   string // причина провала
+	Attempts int    // сколько раз пытались доставить
+}

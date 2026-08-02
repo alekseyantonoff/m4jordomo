@@ -19,6 +19,16 @@ type DeviceState struct {
 	Status bool
 }
 
+// DeadLetterRecord — запись в таблице dead_letters
+type DeadLetterRecord struct {
+	ID        int64  // автоинкремент из БД
+	EventType string // тип события, которое не доставилось
+	Priority  int    // приоритет (число)
+	Payload   string // сериализованный payload в JSON
+	Reason    string // причина провала
+	Attempts  int    // сколько раз пытались
+}
+
 // New — создает новое хранилище и открывает БД
 func New(dbPath string) (*Storage, error) {
 	db, err := sql.Open("sqlite", dbPath)
@@ -48,17 +58,20 @@ func (s *Storage) initTables() error {
 		return err
 	}
 
-	createEventsTable := `
-	CREATE TABLE IF NOT EXISTS events (
+	createDeadLettersTable := `
+	CREATE TABLE IF NOT EXISTS dead_letters (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		type TEXT NOT NULL,
+		event_type TEXT NOT NULL,
 		priority INTEGER NOT NULL,
-		payload TEXT,
+		payload TEXT NOT NULL,
+		reason TEXT NOT NULL,
+		attempts INTEGER NOT NULL,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);`
-	if _, err := s.db.Exec(createEventsTable); err != nil {
+	if _, err := s.db.Exec(createDeadLettersTable); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -98,6 +111,42 @@ func (s *Storage) GetAllDevices() ([]DeviceState, error) {
 func (s *Storage) DeleteDevice(name string) error {
 	query := `DELETE FROM devices WHERE name = ?`
 	_, err := s.db.Exec(query, name)
+	return err
+}
+
+// SaveDeadLetter — сохраняет запись в DLQ
+func (s *Storage) SaveDeadLetter(rec DeadLetterRecord) error {
+	query := `
+	INSERT INTO dead_letters (event_type, priority, payload, reason, attempts)
+	VALUES (?, ?, ?, ?, ?);
+	`
+	_, err := s.db.Exec(query, rec.EventType, rec.Priority, rec.Payload, rec.Reason, rec.Attempts)
+	return err
+}
+
+// GetDeadLetters — возвращает все записи из DLQ
+func (s *Storage) GetDeadLetters() ([]DeadLetterRecord, error) {
+	rows, err := s.db.Query("SELECT id, event_type, priority, payload, reason, attempts FROM dead_letters ORDER BY id")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var records []DeadLetterRecord
+	for rows.Next() {
+		var r DeadLetterRecord
+		if err := rows.Scan(&r.ID, &r.EventType, &r.Priority, &r.Payload, &r.Reason, &r.Attempts); err != nil {
+			return nil, err
+		}
+		records = append(records, r)
+	}
+	return records, nil
+}
+
+// DeleteDeadLetter — удаляет запись из DLQ (после успешного реплея)
+func (s *Storage) DeleteDeadLetter(id int64) error {
+	query := `DELETE FROM dead_letters WHERE id = ?`
+	_, err := s.db.Exec(query, id)
 	return err
 }
 

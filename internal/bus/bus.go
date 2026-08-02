@@ -2,6 +2,7 @@
 package bus
 
 import (
+	"errors"
 	"log"
 	"m4jordomo/internal/types"
 	"sync"
@@ -20,6 +21,9 @@ func New() *Bus {
 		subscribers: make(map[string][]func(types.Event)),
 	}
 }
+
+// ErrNoSubscribers — событие не доставлено: никто не подписан на этот тип
+var ErrNoSubscribers = errors.New("нет подписчиков на событие")
 
 // Subscribe — подписывает функцию на событие
 func (b *Bus) Subscribe(eventType string, fn func(types.Event)) {
@@ -54,7 +58,7 @@ func (b *Bus) publishOnce(event types.Event) error {
 
 	if !exists {
 		log.Printf("[Bus] Нет подписчиков на событие: %s", event.Type)
-		return nil
+		return ErrNoSubscribers
 	}
 
 	for _, handler := range handlers {
@@ -70,9 +74,11 @@ func (b *Bus) publishOnce(event types.Event) error {
 	return nil
 }
 
-// publishWithRetry — пытается доставить событие несколько раз
+// publishWithRetry — пытается доставить событие несколько раз,
+// при исчерпании попыток для Critical/High отправляет событие в DLQ
 func (b *Bus) publishWithRetry(event types.Event, maxRetries int, delay time.Duration) {
 	for i := 0; i < maxRetries; i++ {
+		event.RetryCount = i
 		err := b.publishOnce(event)
 		if err == nil {
 			log.Printf("[Bus] ✅ Событие %s доставлено (попытка %d)", event.Type, i+1)
@@ -84,18 +90,25 @@ func (b *Bus) publishWithRetry(event types.Event, maxRetries int, delay time.Dur
 		}
 	}
 
-	log.Printf("[Bus] 🔴 КРИТИЧЕСКАЯ ОШИБКА: Событие %s потеряно после %d попыток", event.Type, maxRetries)
+	log.Printf("[Bus] 🔴 Событие %s не доставлено после %d попыток", event.Type, maxRetries)
 
-	if event.Priority == types.Critical {
-		b.publishOnce(types.Event{
-			Type:     "system.emergency.trigger",
-			Priority: types.Critical,
-			Payload: map[string]interface{}{
-				"original_event": event.Type,
-				"reason":         "Превышено количество попыток доставки",
-			},
-		})
+	// Critical и High терять нельзя — отправляем в DLQ
+	if event.Priority <= types.High {
+		b.sendToDeadLetter(event)
 	}
+}
+
+// sendToDeadLetter — публикует событие в DLQ (напрямую, без ретраев — чтобы не было цикла)
+func (b *Bus) sendToDeadLetter(event types.Event) {
+	b.publishOnce(types.Event{
+		Type:     types.EventDeadLetter,
+		Priority: types.Medium,
+		Payload: types.DeadLetter{
+			Event:    event,
+			Reason:   "Не доставлено после всех попыток",
+			Attempts: event.RetryCount + 1,
+		},
+	})
 }
 
 // Debug — печатает всех подписчиков (для отладки)

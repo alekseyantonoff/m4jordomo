@@ -57,6 +57,12 @@ func (p *VoicePlugin) listenConsole(bus *bus.Bus) {
 				Priority: types.Medium,
 				Payload:  nil,
 			})
+		case text == "покажи ошибки":
+			bus.Publish(types.Event{
+				Type:     types.EventCommandDeadLetterGetAll,
+				Priority: types.High,
+				Payload:  nil,
+			})
 		case strings.Contains(text, "включи свет"):
 			bus.Publish(types.Event{
 				Type:     types.EventCommandDeviceSet,

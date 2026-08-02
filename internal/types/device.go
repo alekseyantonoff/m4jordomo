@@ -8,11 +8,16 @@ const (
 	// Поток А: команды: ядро → устройство
 	EventCommandDeviceSet     = "command.device.set"
 	EventCommandDeviceGetAll  = "command.device.get_all"
-	EventCommandDeviceBreakIt = "command.device.break_it"
+	EventCommandDeviceBreakIt = "command.device.break_it" // тестовая: публикуется без подписчиков → уходит в DLQ
 
 	// Поток Б: данные: устройство → ядро
 	EventDeviceStateChanged  = "device.state.changed"
 	EventDeviceStateResponse = "device.state.response"
+
+	// DLQ: недоставленные события
+	EventDeadLetter              = "system.dead_letter"          // событие-запись в DLQ
+	EventCommandDeadLetterGetAll = "command.dead_letter.get_all" // команда: показать список DLQ
+	EventDeadLetterResponse      = "dead_letter.response"        // ответ: список DLQ
 )
 
 // DeviceCommand — команда управления устройством (поток А).
@@ -42,12 +47,24 @@ type DeviceStateList struct {
 	States map[string]bool // name -> статус
 }
 
-// EventDeadLetter — событие не доставлено после всех попыток
-const EventDeadLetter = "system.dead_letter"
-
 // DeadLetter — запись для «мёртвой очереди»: что не доставилось и почему
 type DeadLetter struct {
 	Event    Event  // исходное событие, которое не удалось доставить
 	Reason   string // причина провала
 	Attempts int    // сколько раз пытались доставить
+}
+
+// DeadLetterRecord — строка таблицы dead_letters (ответ на command.dead_letter.get_all)
+type DeadLetterRecord struct {
+	ID        int64  // автоинкремент из БД
+	EventType string // тип события, которое не доставилось
+	Priority  int    // приоритет (число)
+	Payload   string // сериализованный payload в JSON
+	Reason    string // причина провала
+	Attempts  int    // сколько раз пытались
+}
+
+// DeadLetterList — снимок списка DLQ (ответ на command.dead_letter.get_all)
+type DeadLetterList struct {
+	Records []DeadLetterRecord // записи из таблицы dead_letters
 }

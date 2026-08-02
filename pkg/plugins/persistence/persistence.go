@@ -33,6 +33,10 @@ func (p *PersistencePlugin) Init(b *bus.Bus) error {
 		p.handleDeadLetter(e)
 	})
 
+	b.Subscribe(types.EventCommandDeadLetterGetAll, func(_ types.Event) {
+		p.handleGetAllDeadLetters(b)
+	})
+
 	log.Println("[Persistence] Подписки выполнены.")
 	return nil
 }
@@ -51,7 +55,7 @@ func (p *PersistencePlugin) handleDeadLetter(e types.Event) {
 		return
 	}
 
-	rec := storage.DeadLetterRecord{
+	rec := types.DeadLetterRecord{
 		EventType: dl.Event.Type,
 		Priority:  int(dl.Event.Priority),
 		Payload:   string(payloadJSON),
@@ -64,4 +68,22 @@ func (p *PersistencePlugin) handleDeadLetter(e types.Event) {
 		return
 	}
 	log.Printf("[Persistence] 💾 Записано в DLQ: %s (попыток: %d)", dl.Event.Type, dl.Attempts)
+}
+
+// handleGetAllDeadLetters — получает все записи из таблицы dead_letters и публикует ответ
+func (p *PersistencePlugin) handleGetAllDeadLetters(bus *bus.Bus) {
+	records, err := p.storage.GetDeadLetters()
+
+	if err != nil {
+		log.Printf("[Persistence] ❌ Ошибка получения данных из dead_letters: %v", err)
+		return
+	}
+
+	bus.Publish(types.Event{
+		Type:     types.EventDeadLetterResponse,
+		Priority: types.Medium,
+		Payload: types.DeadLetterList{
+			Records: records,
+		},
+	})
 }

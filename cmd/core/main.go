@@ -75,6 +75,22 @@ func main() {
 		}
 	})
 
+	b.Subscribe(types.EventDeadLetterResponse, func(e types.Event) {
+		list, ok := e.Payload.(types.DeadLetterList)
+		if !ok {
+			log.Println("[m4jordomo] Ошибка: не могу прочитать список ошибок")
+			return
+		}
+		if len(list.Records) == 0 {
+			log.Println("=== Ошибок нет ===")
+			return
+		}
+		log.Println("=== Ошибки в очереди ===")
+		for _, r := range list.Records {
+			log.Printf("  #%d [%s] %s (попыток: %d) — %s", r.ID, r.EventType, r.Payload, r.Attempts, r.Reason)
+		}
+	})
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit

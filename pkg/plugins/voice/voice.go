@@ -30,6 +30,7 @@ func (p *VoicePlugin) Init(bus *bus.Bus) error {
 	log.Println("  - выключи отопление")
 	log.Println("  - открой дверь")
 	log.Println("  - закрой дверь")
+	log.Println("  - сломай дверь")
 	log.Println("  - статус")
 	log.Println("  - выход")
 	go p.listenConsole(bus)
@@ -109,6 +110,16 @@ func (p *VoicePlugin) listenConsole(bus *bus.Bus) {
 				Payload: types.DeviceCommand{
 					Name:   "door",
 					Status: false,
+				},
+			})
+
+		case strings.Contains(text, "сломай дверь"):
+			bus.Publish(types.Event{
+				Type:     types.EventCommandDeviceBreakIt,
+				Priority: types.High,
+				Payload: types.DeviceCommand{
+					Name:   "door",
+					Status: true,
 				},
 			})
 

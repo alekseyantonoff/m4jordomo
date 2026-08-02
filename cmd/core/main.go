@@ -11,7 +11,9 @@ import (
 	"m4jordomo/internal/bus"
 	"m4jordomo/internal/storage"
 	"m4jordomo/internal/types"
+
 	"m4jordomo/pkg/plugins/devices"
+	"m4jordomo/pkg/plugins/persistence"
 	"m4jordomo/pkg/plugins/voice"
 )
 
@@ -28,12 +30,16 @@ func main() {
 
 	devicesPlugin := devices.New(store)
 	voicePlugin := voice.New()
+	persistencePlugin := persistence.New(store)
 
 	if err := devicesPlugin.Init(b); err != nil {
 		log.Fatalf("Ошибка инициализации Devices: %v", err)
 	}
 	if err := voicePlugin.Init(b); err != nil {
 		log.Fatalf("Ошибка инициализации Voice: %v", err)
+	}
+	if err := persistencePlugin.Init(b); err != nil {
+		log.Fatalf("Ошибка инициализации Persistence: %v", err)
 	}
 
 	log.Println("✅ m4jordomo готов к работе!")

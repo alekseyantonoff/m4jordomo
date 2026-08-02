@@ -6,8 +6,9 @@ import "time"
 // Типы событий
 const (
 	// Поток А: команды: ядро → устройство
-	EventCommandDeviceSet    = "command.device.set"
-	EventCommandDeviceGetAll = "command.device.get_all"
+	EventCommandDeviceSet     = "command.device.set"
+	EventCommandDeviceGetAll  = "command.device.get_all"
+	EventCommandDeviceBreakIt = "command.device.break_it"
 
 	// Поток Б: данные: устройство → ядро
 	EventDeviceStateChanged  = "device.state.changed"

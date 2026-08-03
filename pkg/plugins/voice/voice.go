@@ -31,6 +31,8 @@ func (p *VoicePlugin) Init(bus *bus.Bus) error {
 	log.Println("  - открой дверь")
 	log.Println("  - закрой дверь")
 	log.Println("  - сломай дверь")
+	log.Println("  - покажи ошибки")
+	log.Println("  - повтори публикации из ошибок")
 	log.Println("  - статус")
 	log.Println("  - выход")
 	go p.listenConsole(bus)
@@ -60,7 +62,13 @@ func (p *VoicePlugin) listenConsole(bus *bus.Bus) {
 		case text == "покажи ошибки":
 			bus.Publish(types.Event{
 				Type:     types.EventCommandDeadLetterGetAll,
-				Priority: types.High,
+				Priority: types.Medium,
+				Payload:  nil,
+			})
+		case text == "повтори публикации из ошибок":
+			bus.Publish(types.Event{
+				Type:     types.EventCommandDeadLetterReplay,
+				Priority: types.Medium,
 				Payload:  nil,
 			})
 		case strings.Contains(text, "включи свет"):

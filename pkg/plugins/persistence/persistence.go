@@ -37,6 +37,10 @@ func (p *PersistencePlugin) Init(b *bus.Bus) error {
 		p.handleGetAllDeadLetters(b)
 	})
 
+	b.Subscribe(types.EventCommandDeadLetterReplay, func(_ types.Event) {
+		p.handleReplayDeadLetters(b)
+	})
+
 	log.Println("[Persistence] Подписки выполнены.")
 	return nil
 }
@@ -73,7 +77,6 @@ func (p *PersistencePlugin) handleDeadLetter(e types.Event) {
 // handleGetAllDeadLetters — получает все записи из таблицы dead_letters и публикует ответ
 func (p *PersistencePlugin) handleGetAllDeadLetters(bus *bus.Bus) {
 	records, err := p.storage.GetDeadLetters()
-
 	if err != nil {
 		log.Printf("[Persistence] ❌ Ошибка получения данных из dead_letters: %v", err)
 		return
@@ -86,4 +89,62 @@ func (p *PersistencePlugin) handleGetAllDeadLetters(bus *bus.Bus) {
 			Records: records,
 		},
 	})
+}
+
+// handleReplayDeadLetters — пробует доставить записи из DLQ повторно,
+// при успехе удаляет их из очереди
+func (p *PersistencePlugin) handleReplayDeadLetters(bus *bus.Bus) {
+	records, err := p.storage.GetDeadLetters()
+	if err != nil {
+		log.Printf("[Persistence] ❌ Ошибка получения данных из dead_letters: %v", err)
+		return
+	}
+
+	log.Println("[Persistence] 🔁 Начинаю replay недоставленных событий...")
+	for _, rec := range records {
+		event, err := restoreEvent(rec)
+		if err != nil {
+			log.Printf("[Persistence] ❌ Не удалось восстановить событие #%d: %v", rec.ID, err)
+			continue
+		}
+
+		err = bus.PublishOnce(event)
+		if err != nil {
+			log.Printf("[Persistence] ⏭️ #%d не доставлено повторно: %v", rec.ID, err)
+			continue
+		}
+
+		if err := p.storage.DeleteDeadLetter(rec.ID); err != nil {
+			log.Printf("[Persistence] ❌ Не удалось удалить запись #%d: %v", rec.ID, err)
+			continue
+		}
+		log.Printf("[Persistence] ✅ #%d доставлено повторно и удалено из DLQ", rec.ID)
+	}
+	log.Println("[Persistence] 🔁 Реплей завершён.")
+}
+
+// restoreEvent - восстанавливает типизированное событие из JSON-записи DLQ
+func restoreEvent(rec types.DeadLetterRecord) (types.Event, error) {
+	var e types.Event
+	if err := json.Unmarshal([]byte(rec.Payload), &e); err != nil {
+		return e, err
+	}
+
+	// e.Payload после Unmarshal — это map[string]interface{}.
+	// Перегоняем его в типизированную структуру по типу события.
+	switch e.Type {
+	case types.EventCommandDeviceSet, types.EventCommandDeviceBreakIt:
+		var cmd types.DeviceCommand
+		data, err := json.Marshal(e.Payload)
+		if err != nil {
+			return e, err
+		}
+		if err := json.Unmarshal(data, &cmd); err != nil {
+			return e, err
+		}
+		e.Payload = cmd
+	}
+
+	e.RetryCount = 0
+	return e, nil
 }

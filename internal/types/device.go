@@ -17,6 +17,7 @@ const (
 	// DLQ: недоставленные события
 	EventDeadLetter              = "system.dead_letter"          // событие-запись в DLQ
 	EventCommandDeadLetterGetAll = "command.dead_letter.get_all" // команда: показать список DLQ
+	EventCommandDeadLetterReplay = "command.dead_letter.replay"  // команда «повторить недоставленные события»
 	EventDeadLetterResponse      = "dead_letter.response"        // ответ: список DLQ
 )
 

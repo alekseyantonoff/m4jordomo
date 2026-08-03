@@ -50,6 +50,11 @@ func (b *Bus) Publish(event types.Event) {
 	}
 }
 
+// PublishOnce — пытается доставить событие один раз, без ретраев и DLQ (для реплея)
+func (b *Bus) PublishOnce(event types.Event) error {
+	return b.publishOnce(event)
+}
+
 // publishOnce — пытается доставить событие один раз
 func (b *Bus) publishOnce(event types.Event) error {
 	b.mu.RLock()

@@ -19,6 +19,8 @@ const (
 	EventCommandDeadLetterGetAll = "command.dead_letter.get_all" // команда: показать список DLQ
 	EventCommandDeadLetterReplay = "command.dead_letter.replay"  // команда «повторить недоставленные события»
 	EventDeadLetterResponse      = "dead_letter.response"        // ответ: список DLQ
+
+	EventCommandScene = "command.scene" // сцена: "arrive", "leave"
 )
 
 // DeviceCommand — команда управления устройством (поток А).
@@ -68,4 +70,9 @@ type DeadLetterRecord struct {
 // DeadLetterList — снимок списка DLQ (ответ на command.dead_letter.get_all)
 type DeadLetterList struct {
 	Records []DeadLetterRecord // записи из таблицы dead_letters
+}
+
+// Scene — команда сцены (группа действий)
+type Scene struct {
+	Name string // "arrive", "leave"
 }

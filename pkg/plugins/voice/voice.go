@@ -24,12 +24,8 @@ func (p *VoicePlugin) Name() string {
 func (p *VoicePlugin) Init(bus *bus.Bus) error {
 	log.Println("[Voice] 🎤 Запущен голосовой интерфейс (вводите команды в консоль)")
 	log.Println("[Voice] Доступные команды:")
-	log.Println("  - включи свет")
-	log.Println("  - выключи свет")
-	log.Println("  - включи отопление")
-	log.Println("  - выключи отопление")
-	log.Println("  - открой дверь")
-	log.Println("  - закрой дверь")
+	log.Println("  - включи/выключи <устройство> (например: включи свет)")
+	log.Println("  - открой/закрой дверь")
 	log.Println("  - сломай дверь")
 	log.Println("  - покажи ошибки")
 	log.Println("  - повтори публикации из ошибок")
@@ -138,7 +134,41 @@ func (p *VoicePlugin) listenConsole(bus *bus.Bus) {
 			})
 
 		default:
-			log.Printf("[Voice] 🤔 Не понял команду: '%s'", text)
+			if verb, target, ok := parseToggle(text); ok {
+				toggleDevice(bus, verb, target)
+			} else {
+				log.Printf("[Voice] 🤔 Не понял команду: '%s'", text)
+			}
 		}
 	}
+}
+
+// parseToggle — разбирает «включи X», «выключи X», «открой X», «закрой X»
+func parseToggle(text string) (verb string, target string, ok bool) {
+	words := strings.Fields(text)
+	for i, w := range words {
+		switch w {
+		case "включи", "включите", "открой", "откройте":
+			return "on", strings.Join(words[i+1:], " "), true
+		case "выключи", "выключите", "закрой", "закройте":
+			return "off", strings.Join(words[i+1:], " "), true
+		}
+	}
+	return "", "", false
+}
+
+// toggleDevice — публикует команду; разрешение имени и алиасов делает реестр (devices)
+func toggleDevice(bus *bus.Bus, verb, target string) {
+	if target == "" {
+		log.Printf("[Voice] 🤔 Не понял команду: не указано устройство")
+		return
+	}
+	bus.Publish(types.Event{
+		Type:     types.EventCommandDeviceSet,
+		Priority: types.High,
+		Payload: types.DeviceCommand{
+			Name:   target,
+			Status: verb == "on",
+		},
+	})
 }

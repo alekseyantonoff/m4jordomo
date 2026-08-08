@@ -22,6 +22,14 @@ var defaultDevices = map[string]bool{
 	"door":    false,
 }
 
+// deviceAliases — как пользователь называет устройство → каноническое имя в реестре
+var deviceAliases = map[string]string{
+	"свет":       "light",
+	"светильник": "light",
+	"отопление":  "heating",
+	"дверь":      "door",
+}
+
 func New(st *storage.Storage) *DevicesPlugin {
 	return &DevicesPlugin{
 		states:  make(map[string]bool),
@@ -119,6 +127,12 @@ func (p *DevicesPlugin) handleSetDevice(e types.Event, bus *bus.Bus) {
 		log.Printf("[Devices] Ошибка: неверный формат payload: %v", e.Payload)
 		return
 	}
+
+	// Разрешаем алиас → каноническое имя
+	if canonical, exists := deviceAliases[cmd.Name]; exists {
+		cmd.Name = canonical
+	}
+
 	p.mu.Lock()
 	_, exists := p.states[cmd.Name]
 	if !exists {

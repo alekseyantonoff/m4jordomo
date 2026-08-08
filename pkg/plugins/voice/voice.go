@@ -25,7 +25,8 @@ func (p *VoicePlugin) Init(bus *bus.Bus) error {
 	log.Println("[Voice] 🎤 Запущен голосовой интерфейс (вводите команды в консоль)")
 	log.Println("[Voice] Доступные команды:")
 	log.Println("  - включи/выключи <устройство> (например: включи свет)")
-	log.Println("  - открой/закрой дверь")
+	log.Println("  - открой/закрой <устройство> (например: открой дверь)")
+	log.Println("  - я пришел / я ушел (сцены)")
 	log.Println("  - сломай дверь")
 	log.Println("  - покажи ошибки")
 	log.Println("  - повтори публикации из ошибок")
@@ -67,43 +68,6 @@ func (p *VoicePlugin) listenConsole(bus *bus.Bus) {
 				Priority: types.Medium,
 				Payload:  nil,
 			})
-		case strings.Contains(text, "включи свет"):
-			bus.Publish(types.Event{
-				Type:     types.EventCommandDeviceSet,
-				Priority: types.High,
-				Payload: types.DeviceCommand{
-					Name:   "light",
-					Status: true,
-				},
-			})
-		case strings.Contains(text, "выключи свет"):
-			bus.Publish(types.Event{
-				Type:     types.EventCommandDeviceSet,
-				Priority: types.High,
-				Payload: types.DeviceCommand{
-					Name:   "light",
-					Status: false,
-				},
-			})
-		case strings.Contains(text, "включи отопление"):
-			bus.Publish(types.Event{
-				Type:     types.EventCommandDeviceSet,
-				Priority: types.High,
-				Payload: types.DeviceCommand{
-					Name:   "heating",
-					Status: true,
-				},
-			})
-		case strings.Contains(text, "выключи отопление"):
-			bus.Publish(types.Event{
-				Type:     types.EventCommandDeviceSet,
-				Priority: types.High,
-				Payload: types.DeviceCommand{
-					Name:   "heating",
-					Status: false,
-				},
-			})
-
 		case strings.Contains(text, "открой дверь"):
 			bus.Publish(types.Event{
 				Type:     types.EventCommandDeviceSet,
@@ -132,6 +96,18 @@ func (p *VoicePlugin) listenConsole(bus *bus.Bus) {
 					Status: true,
 				},
 			})
+		case strings.Contains(text, "я пришел"):
+			bus.Publish(types.Event{
+				Type:     types.EventCommandScene,
+				Priority: types.High,
+				Payload:  types.Scene{Name: "arrive"},
+			})
+		case strings.Contains(text, "я ушел"):
+			bus.Publish(types.Event{
+				Type:     types.EventCommandScene,
+				Priority: types.High,
+				Payload:  types.Scene{Name: "leave"},
+			})
 
 		default:
 			if verb, target, ok := parseToggle(text); ok {
@@ -148,9 +124,9 @@ func parseToggle(text string) (verb string, target string, ok bool) {
 	words := strings.Fields(text)
 	for i, w := range words {
 		switch w {
-		case "включи", "включите", "открой", "откройте":
+		case "включи", "открой":
 			return "on", strings.Join(words[i+1:], " "), true
-		case "выключи", "выключите", "закрой", "закройте":
+		case "выключи", "закрой":
 			return "off", strings.Join(words[i+1:], " "), true
 		}
 	}

@@ -14,6 +14,7 @@ import (
 
 	"m4jordomo/pkg/plugins/devices"
 	"m4jordomo/pkg/plugins/persistence"
+	"m4jordomo/pkg/plugins/rules"
 	"m4jordomo/pkg/plugins/voice"
 )
 
@@ -31,6 +32,7 @@ func main() {
 	devicesPlugin := devices.New(store)
 	voicePlugin := voice.New()
 	persistencePlugin := persistence.New(store)
+	rulesPlugin := rules.New()
 
 	if err := devicesPlugin.Init(b); err != nil {
 		log.Fatalf("Ошибка инициализации Devices: %v", err)
@@ -40,6 +42,9 @@ func main() {
 	}
 	if err := persistencePlugin.Init(b); err != nil {
 		log.Fatalf("Ошибка инициализации Persistence: %v", err)
+	}
+	if err := rulesPlugin.Init(b); err != nil {
+		log.Fatalf("Ошибка инициализации Rules: %v", err)
 	}
 
 	log.Println("✅ m4jordomo готов к работе!")

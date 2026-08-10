@@ -5,14 +5,16 @@ import (
 	"log"
 
 	"m4jordomo/internal/bus"
+	"m4jordomo/internal/storage"
 	"m4jordomo/internal/types"
 	"sync"
 )
 
 type RulesPlugin struct {
-	mu    sync.RWMutex
-	rules []types.Rule
-	last  map[string]bool // последнее известное состояние устройств
+	mu      sync.RWMutex
+	rules   []types.Rule
+	last    map[string]bool // последнее известное состояние устройств
+	storage *storage.Storage
 }
 
 var defaultRules = []types.Rule{
@@ -54,10 +56,11 @@ var defaultRules = []types.Rule{
 	},
 }
 
-func New() *RulesPlugin {
+func New(st *storage.Storage) *RulesPlugin {
 	return &RulesPlugin{
-		rules: defaultRules,
-		last:  make(map[string]bool),
+		rules:   defaultRules,
+		last:    make(map[string]bool),
+		storage: st,
 	}
 }
 
@@ -66,6 +69,11 @@ func (p *RulesPlugin) Name() string {
 }
 
 func (p *RulesPlugin) Init(b *bus.Bus) error {
+	// Пытаемся загрузить состояния из БД
+	if err := p.loadStatesFromDB(); err != nil {
+		log.Printf("[Rules] ⚠️ Не удалось загрузить состояния: %v", err)
+	}
+
 	log.Println("[Rules] ⚙️ Автоматизации запущены:")
 	for _, r := range p.rules {
 		log.Printf("  - [%s] %s", r.Priority.String(), r.ID)
@@ -79,6 +87,19 @@ func (p *RulesPlugin) Init(b *bus.Bus) error {
 	})
 
 	log.Println("[Rules] Подписки выполнены.")
+	return nil
+}
+
+func (p *RulesPlugin) loadStatesFromDB() error {
+	states, err := p.storage.GetAllDevices()
+	if err != nil {
+		return err
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _, s := range states {
+		p.last[s.Name] = s.Status
+	}
 	return nil
 }
 

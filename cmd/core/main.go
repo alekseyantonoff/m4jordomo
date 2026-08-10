@@ -32,7 +32,7 @@ func main() {
 	devicesPlugin := devices.New(store)
 	voicePlugin := voice.New()
 	persistencePlugin := persistence.New(store)
-	rulesPlugin := rules.New()
+	rulesPlugin := rules.New(store)
 
 	if err := devicesPlugin.Init(b); err != nil {
 		log.Fatalf("Ошибка инициализации Devices: %v", err)

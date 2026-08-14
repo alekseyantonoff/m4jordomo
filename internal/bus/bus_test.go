@@ -1,6 +1,7 @@
 package bus
 
 import (
+	"errors"
 	"m4jordomo/internal/types"
 	"testing"
 )
@@ -18,7 +19,7 @@ func TestSubscribeAndPublish(t *testing.T) {
 	})
 
 	if !received {
-		t.Errorf("обработчик не вызван: received=%v", received)
+		t.Errorf("Обработчик не вызван: received=%v", received)
 	}
 }
 
@@ -41,6 +42,16 @@ func TestAllHandlersAreCalled(t *testing.T) {
 
 	const want = 2
 	if count != want {
-		t.Errorf("вызвано обработчиков: got=%d, want=%d", count, want)
+		t.Errorf("Вызвано обработчиков: got=%d, want=%d", count, want)
+	}
+}
+
+func TestPublishOnceUnknownTypeReturnsError(t *testing.T) {
+	const noSuchType = "no.such.type"
+	b := New()
+	err := b.publishOnce(types.Event{Type: noSuchType, Priority: types.Medium})
+
+	if err == nil || !errors.Is(err, ErrNoSubscribers) {
+		t.Errorf("publishOnce(%s): want %v, got %v", noSuchType, ErrNoSubscribers, err)
 	}
 }
